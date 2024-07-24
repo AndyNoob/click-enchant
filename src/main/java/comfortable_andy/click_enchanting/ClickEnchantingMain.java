@@ -1,8 +1,9 @@
 package comfortable_andy.click_enchanting;
 
 import org.bukkit.Material;
-import org.bukkit.craftbukkit.inventory.CraftItemStack;
+import org.bukkit.Sound;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.ClickType;
@@ -28,8 +29,7 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
         final ItemStack cursor = event.getCursor();
         final ItemStack currentItem = event.getCurrentItem();
         if (cursor.getType().isAir()) return;
-        final var nmsItem = CraftItemStack.asNMSCopy(cursor);
-        // TODO remove and display experience
+        // TODO display experience
         if (cursor.getType() == Material.ENCHANTED_BOOK) {
             final EnchantmentStorageMeta meta = (EnchantmentStorageMeta) cursor.getItemMeta();
             final Map<Enchantment, Integer> enchants = meta.getStoredEnchants();
@@ -42,11 +42,24 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
                 else event.getWhoClicked().setItemOnCursor(cursor);
             } else {
                 if (event.getClick() != ClickType.LEFT) return;
+                int levels = 0;
+                for (Map.Entry<Enchantment, Integer> entry : enchants.entrySet()) {
+                    final Enchantment enchant = entry.getKey();
+                    final Integer level = entry.getValue();
+                    levels += level * Math.max(1, enchant.getAnvilCost() / 2);
+                }
+                Player player = (Player) event.getWhoClicked();
+                if (player.getLevel() < levels) {
+                    player.playSound(event.getWhoClicked(), Sound.ENTITY_VILLAGER_NO, 1, 0.8f);
+                    return;
+                }
+                player.giveExpLevels(-levels);
                 for (Map.Entry<Enchantment, Integer> entry : enchants.entrySet()) {
                     final Enchantment enchant = entry.getKey();
                     addEnchant(currentItem, enchant, entry.getValue());
                 }
                 cursor.setAmount(0);
+
             }
             if (!cursor.isEmpty()) cursor.setItemMeta(meta);
         } else if (!cursor.getEnchantments().isEmpty()) {
