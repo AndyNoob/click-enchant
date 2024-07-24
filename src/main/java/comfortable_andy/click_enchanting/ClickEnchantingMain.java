@@ -38,16 +38,8 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
                     || currentItem.getType().isAir()) {
                 // partition enchanting books
                 if (event.getAction() != InventoryAction.PLACE_ONE) return;
-                final Enchantment enchant = findLast(enchants);
-                if (enchant == null) return;
-                int level = meta.getStoredEnchantLevel(enchant);
-                meta.removeStoredEnchant(enchant);
-                if (enchants.size() <= 1) {
-                    meta.addStoredEnchant(enchant, level - 1, true);
-                    level = 1;
-                }
-                if (meta.getStoredEnchants().isEmpty()) cursor.setAmount(0);
-                event.getView().setItem(event.getRawSlot(), makeBook(enchant, level));
+                if (failedPartitionEnchants(event, cursor)) return;
+                else event.getWhoClicked().setItemOnCursor(cursor);
             } else {
                 if (event.getClick() != ClickType.LEFT) return;
                 for (Map.Entry<Enchantment, Integer> entry : enchants.entrySet()) {
@@ -60,26 +52,36 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
         } else if (!cursor.getEnchantments().isEmpty()) {
             if (event.getClickedInventory() == null) return;
             if (event.getAction() != InventoryAction.PLACE_ONE) return;
-            if (!partitionEnchants(event, cursor)) return;
+            if (failedPartitionEnchants(event, cursor)) return;
+            else event.getWhoClicked().setItemOnCursor(cursor);
         } else return;
         event.setCancelled(true);
     }
 
-    private static boolean partitionEnchants(InventoryClickEvent event, ItemStack item) {
+    private static boolean failedPartitionEnchants(InventoryClickEvent event, ItemStack item) {
         final EnchantmentStorageMeta meta = item.getType() == Material.ENCHANTED_BOOK ? (EnchantmentStorageMeta) item.getItemMeta() : null;
         final Map<Enchantment, Integer> enchants = meta == null ? item.getEnchantments() : meta.getStoredEnchants();
-        if (enchants.isEmpty()) return false;
+        if (enchants.isEmpty()) return true;
         final Enchantment enchant = findLast(enchants);
-        if (enchant == null) return false;
-        final ItemStack book = makeBook(enchant, meta != null ? meta.getStoredEnchantLevel(enchant) : item.getEnchantmentLevel(enchant));
+        if (enchant == null) return true;
+        int level = meta != null ? meta.getStoredEnchantLevel(enchant) : item.getEnchantmentLevel(enchant);
         if (meta == null) {
             item.removeEnchantment(enchant);
         } else {
-            // TODO
+            if (level <= 1) return true;
+            meta.removeStoredEnchant(enchant);
+            if (enchants.size() == 1) {
+                meta.addStoredEnchant(enchant, level - 1, true);
+                level = 1;
+            }
             if (meta.getStoredEnchants().isEmpty()) item.setAmount(0);
         }
+        final ItemStack book = makeBook(enchant, level);
         event.getView().setItem(event.getRawSlot(), book);
-        return true;
+        if (meta != null && !item.isEmpty()) {
+            item.setItemMeta(meta);
+        }
+        return false;
     }
 
     private static void addEnchant(ItemStack item, Enchantment enchant, int level) {
