@@ -71,8 +71,7 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
             if (level <= 1) return true;
             meta.removeStoredEnchant(enchant);
             if (enchants.size() == 1) {
-                meta.addStoredEnchant(enchant, level - 1, true);
-                level = 1;
+                meta.addStoredEnchant(enchant, level -= 1, true);
             }
             if (meta.getStoredEnchants().isEmpty()) item.setAmount(0);
         }
@@ -87,9 +86,13 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
     private static void addEnchant(ItemStack item, Enchantment enchant, int level) {
         if (item.getType() == Material.ENCHANTED_BOOK) {
             final EnchantmentStorageMeta meta = (EnchantmentStorageMeta) item.getItemMeta();
-            meta.addStoredEnchant(enchant, meta.getStoredEnchantLevel(enchant) + level, true);
+            final int storedLevel = meta.getStoredEnchantLevel(enchant);
+            meta.addStoredEnchant(enchant, storedLevel == level ? storedLevel + 1 : Math.max(storedLevel, level), true);
             item.setItemMeta(meta);
-        } else item.addUnsafeEnchantment(enchant, item.getEnchantmentLevel(enchant) + level);
+        } else {
+            final int otherLevel = item.getEnchantmentLevel(enchant);
+            item.addUnsafeEnchantment(enchant, otherLevel + level);
+        }
     }
 
     @NotNull
