@@ -1,0 +1,4 @@
+name: ClickEnchanting
+version: '${version}'
+main: comfortable_andy.click_enchanting.ClickEnchantingMain
+api-version: '1.21'
