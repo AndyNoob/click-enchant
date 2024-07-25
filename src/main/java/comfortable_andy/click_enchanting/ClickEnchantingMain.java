@@ -104,7 +104,7 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
             item.setItemMeta(meta);
         } else {
             final int otherLevel = item.getEnchantmentLevel(enchant);
-            item.addUnsafeEnchantment(enchant, otherLevel + level);
+            item.addUnsafeEnchantment(enchant, otherLevel == level ? otherLevel + 1 : Math.max(otherLevel, level));
         }
     }
 
