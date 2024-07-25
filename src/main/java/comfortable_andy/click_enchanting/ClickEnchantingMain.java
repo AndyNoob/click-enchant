@@ -54,7 +54,6 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
                 if (player.getLevel() < levels) {
                     player.playSound(event.getWhoClicked(), Sound.ENTITY_VILLAGER_NO, 1, 0.8f);
                     player.sendMessage(ChatColor.RED + "Not enough experience levels! (Needed " + levels + ")");
-                    player.closeInventory();
                     return;
                 }
                 player.giveExpLevels(-levels);
