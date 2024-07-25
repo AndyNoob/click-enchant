@@ -1,5 +1,6 @@
 package comfortable_andy.click_enchanting;
 
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.enchantments.Enchantment;
@@ -24,6 +25,7 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(this, this);
     }
 
+    @SuppressWarnings("deprecation")
     @EventHandler
     public void onClick(InventoryClickEvent event) {
         final ItemStack cursor = event.getCursor();
@@ -51,6 +53,8 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
                 Player player = (Player) event.getWhoClicked();
                 if (player.getLevel() < levels) {
                     player.playSound(event.getWhoClicked(), Sound.ENTITY_VILLAGER_NO, 1, 0.8f);
+                    player.sendMessage(ChatColor.RED + "Not enough experience levels! (Needed " + levels + ")");
+                    player.closeInventory();
                     return;
                 }
                 player.giveExpLevels(-levels);
