@@ -30,7 +30,7 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
     public void onClick(InventoryClickEvent event) {
         final ItemStack cursor = event.getCursor();
         final ItemStack currentItem = event.getCurrentItem();
-        if (cursor.getType().isAir()) return;
+        if (cursor.getType().isAir() || cursor.getAmount() != 1) return;
         // TODO display experience
         if (cursor.getType() == Material.ENCHANTED_BOOK) {
             final EnchantmentStorageMeta meta = (EnchantmentStorageMeta) cursor.getItemMeta();
