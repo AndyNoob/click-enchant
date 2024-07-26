@@ -84,6 +84,7 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
             final Enchantment enchant = entry.getKey();
             EnchantUtil.addEnchant(currentItem, enchant, entry.getValue());
         }
+        playEnchantEffect(player);
         event.setCurrentItem(currentItem);
         return false;
     }
