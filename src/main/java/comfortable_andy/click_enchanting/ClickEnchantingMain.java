@@ -28,6 +28,7 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onClick(InventoryClickEvent event) {
+        if (event.getClickedInventory() == null) return;
         final ItemStack cursor = event.getCursor();
         final ItemStack currentItem = event.getCurrentItem();
         final boolean isCurrentItemEmpty = currentItem == null
@@ -50,7 +51,6 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
             }
             if (!cursor.isEmpty()) cursor.setItemMeta(meta);
         } else if (!cursor.getEnchantments().isEmpty()) {
-            if (event.getClickedInventory() == null) return;
             if (event.getClick() != ClickType.RIGHT) return;
             if (isCurrentItemEmpty || notBook(currentItem)) {
                 exitInventory((Player) event.getWhoClicked(), ChatColor.RED + "You can only extract into a book!");
