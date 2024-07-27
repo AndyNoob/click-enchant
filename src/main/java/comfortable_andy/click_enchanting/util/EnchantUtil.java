@@ -20,8 +20,12 @@ public class EnchantUtil {
         return item == null || item.getAmount() != 1 || item.getType() != Material.BOOK;
     }
 
+    public static boolean notEnchantedBook(ItemStack item) {
+        return item == null || item.getAmount() != 1 || item.getType() != Material.ENCHANTED_BOOK;
+    }
+
     public static boolean bookOrEnchantedBook(ItemStack item) {
-        return !notBook(item) || item.getType() == Material.ENCHANTED_BOOK;
+        return !notBook(item) || !notEnchantedBook(item);
     }
 
     @SuppressWarnings("deprecation")
@@ -52,4 +56,21 @@ public class EnchantUtil {
     public static Enchantment findLast(Map<Enchantment, Integer> enchants) {
         return enchants.keySet().stream().reduce((a, b) -> a).orElse(null);
     }
+
+    public static int getLevels(ItemStack i) {
+        if (notEnchantedBook(i)) return 0;
+        return getLevels(((EnchantmentStorageMeta) i.getItemMeta()).getStoredEnchants());
+    }
+
+
+    public static int getLevels(Map<Enchantment, Integer> enchants) {
+        int levels = 0;
+        for (Map.Entry<Enchantment, Integer> entry : enchants.entrySet()) {
+            final Enchantment enchant = entry.getKey();
+            final Integer level = entry.getValue();
+            levels += level * Math.max(1, enchant.getAnvilCost() / 2);
+        }
+        return levels;
+    }
+
 }
