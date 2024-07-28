@@ -74,7 +74,7 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
                 if (failedEnchant(event, meta)) return;
                 cursor.setAmount(0);
             } else if (event.getClick() == ClickType.RIGHT
-                    && bookOrEnchantedBook(currentItem)) {
+                    && !notBook(currentItem)) {
                 // is book && partition enchanting books
                 if (failedPartitionEnchants(event, cursor)) return;
                 else event.getWhoClicked().setItemOnCursor(cursor);
