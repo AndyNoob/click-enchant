@@ -1,0 +1,32 @@
+name: "Build"
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-artifact:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        name: "Checking out"
+      - uses: actions/setup-java@v4
+        name: "Setup Java"
+        with:
+          distribution: "zulu"
+          java-version: "17"
+          cache: "gradle"
+      - run: |
+          echo -n "version=" >> "$GITHUB_OUTPUT"
+          echo $(gradle properties --no-daemon --console=plain -q | grep "^version:" | awk '{printf $2}') >> "$GITHUB_OUTPUT"
+        id: version
+      - run: gradle reobfJar --no-daemon
+        name: "Build"
+      - uses: actions/upload-artifact@v4
+        name: "Upload artifact"
+        with:
+          name: ${{ steps.version.outputs.version }}
+          path: |
+            build/libs/**.jar
+            !build/libs/**-dev-all.jar
