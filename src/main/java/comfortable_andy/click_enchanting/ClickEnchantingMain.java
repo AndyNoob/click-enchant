@@ -1,11 +1,18 @@
 package comfortable_andy.click_enchanting;
 
+import com.mojang.brigadier.Command;
 import comfortable_andy.click_enchanting.util.EnchantUtil;
+import io.papermc.paper.command.brigadier.Commands;
+import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
+import io.papermc.paper.registry.RegistryAccess;
+import io.papermc.paper.registry.RegistryKey;
+import net.kyori.adventure.key.Key;
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
 import net.minecraft.server.level.ServerPlayer;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.Sound;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.enchantments.Enchantment;
@@ -19,17 +26,42 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.intellij.lang.annotations.Subst;
 
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static comfortable_andy.click_enchanting.util.EnchantUtil.*;
 
-@SuppressWarnings("deprecation")
+@SuppressWarnings({"deprecation", "UnstableApiUsage"})
 public final class ClickEnchantingMain extends JavaPlugin implements Listener {
+
+    public static final Map<String, Integer> MAXES = new HashMap<>();
 
     @Override
     public void onEnable() {
+        reload();
         getServer().getPluginManager().registerEvents(this, this);
+        getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, commands -> {
+            commands.registrar().register(Commands.literal("click-enchant")
+                    .then(Commands.literal("reload").executes(s -> {
+                        reload();
+                        s.getSource().getSender().sendMessage("Done reloading!");
+                        return Command.SINGLE_SUCCESS;
+                    })).build());
+        });
+    }
+
+    private void reload() {
+        MAXES.clear();
+        saveDefaultConfig();
+        reloadConfig();
+        ConfigurationSection section = getConfig().getConfigurationSection("maxes");
+        if (section == null) return;
+        for (@Subst("minecraft:protection") String key : section.getKeys(false)) {
+            MAXES.put(key, section.getInt(key, Optional.ofNullable(RegistryAccess.registryAccess().getRegistry(RegistryKey.ENCHANTMENT).get(Key.key(key))).map(Enchantment::getMaxLevel).orElse(0)));
+        }
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
@@ -107,7 +139,11 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
         player.giveExpLevels(-levels);
         for (Map.Entry<Enchantment, Integer> entry : enchants.entrySet()) {
             final Enchantment enchant = entry.getKey();
-            EnchantUtil.addEnchant(currentItem, enchant, entry.getValue());
+            if (EnchantUtil.addEnchant(currentItem, enchant, entry.getValue()) == null) {
+                exitInventory(player, ChatColor.RED + "Exceeded max enchant level of " + enchant.getKey());
+                event.setCancelled(true);
+                return true;
+            }
         }
         playEnchantEffect(player);
         event.setCurrentItem(currentItem);
@@ -142,6 +178,11 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
         }
         final int newLevel = Math.max(1, level);
         final ItemStack book = event.getCurrentItem() == null ? makeBook(enchant, newLevel) : addEnchant(event.getCurrentItem(), enchant, newLevel);
+        if (book == null) {
+            exitInventory((Player) event.getWhoClicked(), ChatColor.RED + "Exceeded max enchant level of " + enchant.getKey());
+            event.setCancelled(true);
+            return true;
+        }
         event.getView().setItem(event.getRawSlot(), book);
         if (isEnchantedBook && notBook(extracting)) extracting.setItemMeta(meta);
         return false;

@@ -1,5 +1,6 @@
 package comfortable_andy.click_enchanting.util;
 
+import comfortable_andy.click_enchanting.ClickEnchantingMain;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.SoundCategory;
@@ -16,6 +17,7 @@ public class EnchantUtil {
     public static void playEnchantEffect(Player player) {
         player.playSound(player.getLocation(), Sound.BLOCK_ENCHANTMENT_TABLE_USE, SoundCategory.MASTER, 1, 1);
     }
+
     public static boolean notBook(ItemStack item) {
         return item == null || item.getAmount() != 1 || item.getType() != Material.BOOK;
     }
@@ -29,16 +31,22 @@ public class EnchantUtil {
     }
 
     @SuppressWarnings("deprecation")
+    @Nullable
     public static ItemStack addEnchant(ItemStack item, Enchantment enchant, int level) {
         if (item.getType() == Material.BOOK) item.setType(Material.ENCHANTED_BOOK);
+        Integer maxLevel = ClickEnchantingMain.MAXES.getOrDefault(enchant.getKey().toString(), Integer.MAX_VALUE);
         if (item.getType() == Material.ENCHANTED_BOOK) {
             final EnchantmentStorageMeta meta = (EnchantmentStorageMeta) item.getItemMeta();
             final int storedLevel = meta.getStoredEnchantLevel(enchant);
-            meta.addStoredEnchant(enchant, storedLevel == level ? storedLevel + 1 : Math.max(storedLevel, level), true);
+            final int newLevel = storedLevel == level ? storedLevel + 1 : Math.max(storedLevel, level);
+            if (newLevel > maxLevel) return null;
+            meta.addStoredEnchant(enchant, newLevel, true);
             item.setItemMeta(meta);
         } else {
             final int otherLevel = item.getEnchantmentLevel(enchant);
-            item.addUnsafeEnchantment(enchant, otherLevel == level ? otherLevel + 1 : Math.max(otherLevel, level));
+            int newLevel = otherLevel == level ? otherLevel + 1 : Math.max(otherLevel, level);
+            if (newLevel > maxLevel) return null;
+            item.addUnsafeEnchantment(enchant, newLevel);
         }
         return item;
     }
