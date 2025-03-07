@@ -21,7 +21,7 @@ jobs:
           echo -n "version=" >> "$GITHUB_OUTPUT"
           echo $(gradle properties --no-daemon --console=plain -q | grep "^version:" | awk '{printf $2}') >> "$GITHUB_OUTPUT"
         id: version
-      - run: gradle reobfJar --no-daemon
+      - run: gradle build --no-daemon
         name: "Build"
       - uses: actions/upload-artifact@v4
         name: "Upload artifact"
