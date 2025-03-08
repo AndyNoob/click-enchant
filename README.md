@@ -4,6 +4,6 @@ This project was created for `andy.minekeep.gg` because I didn't feel like setti
 Drag and drop the latest successfully built artifact under [here](https://github.com/AndyNoob/click-enchant/actions) into your `/plugins/`.
 ## Showcase
 ### Enchanting
-https://github.com/user-attachments/assets/f036dd69-420b-4bcc-8f11-833f182b7253
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/zgQg0cV3Y9I" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 ### Disenchanting
-https://github.com/user-attachments/assets/38fcd7a4-ebfe-41e1-8c04-3de037741e45
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/16HBbwqeIDM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
