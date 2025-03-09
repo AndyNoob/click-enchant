@@ -2,3 +2,13 @@ name: ClickEnchanting
 version: '${version}'
 main: comfortable_andy.click_enchanting.ClickEnchantingMain
 api-version: '1.21'
+permissions:
+  click_enchant.use:
+    default: true
+    children:
+      - click_enchant.enchant
+      - click_enchant.unenchant
+  click_enchant.enchant:
+    default: true
+  click_enchant.unenchant:
+    default: true

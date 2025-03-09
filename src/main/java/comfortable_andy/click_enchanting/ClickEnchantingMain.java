@@ -126,6 +126,7 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
     }
 
     private static boolean failedEnchant(InventoryClickEvent event, EnchantmentStorageMeta meta) {
+        if (!event.getWhoClicked().hasPermission("click_enchant.enchant")) return true;
         ItemStack currentItem = event.getCurrentItem();
         if (currentItem == null) return true;
         final Player player = (Player) event.getWhoClicked();
@@ -157,6 +158,7 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
     }
 
     private static boolean failedPartitionEnchants(InventoryClickEvent event, ItemStack extracting) {
+        if (!event.getWhoClicked().hasPermission("click_enchant.unenchant")) return true;
         final EnchantmentStorageMeta meta = extracting.getType() == Material.ENCHANTED_BOOK ? (EnchantmentStorageMeta) extracting.getItemMeta() : null;
         final boolean isNormalItem = meta == null;
         final boolean isEnchantedBook = meta != null;
