@@ -29,8 +29,11 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.intellij.lang.annotations.Subst;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static comfortable_andy.click_enchanting.util.EnchantUtil.*;
 
@@ -43,6 +46,7 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
     public void onEnable() {
         reload();
         getServer().getPluginManager().registerEvents(this, this);
+        //noinspection CodeBlock2Expr
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, commands -> {
             commands.registrar().register(Commands.literal("click-enchant")
                     .then(Commands.literal("reload").executes(s -> {
@@ -97,7 +101,8 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
         final boolean isCurrentItemEmpty = currentItem == null
                 || currentItem.isEmpty()
                 || currentItem.getType().isAir();
-        if (currentItem != null && (currentItem.getType().isAir() || currentItem.getAmount() != 1 || currentItem.getMaxStackSize() != 1)) return;
+        if (currentItem != null && (currentItem.getType().isAir() || currentItem.getAmount() != 1 || currentItem.getMaxStackSize() != 1))
+            return;
         if (cursor.getType() == Material.ENCHANTED_BOOK) {
             final EnchantmentStorageMeta meta = (EnchantmentStorageMeta) cursor.getItemMeta();
             if (isCurrentItemEmpty) {
@@ -125,22 +130,40 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
         event.setCancelled(true);
     }
 
-    private static boolean failedEnchant(InventoryClickEvent event, EnchantmentStorageMeta meta) {
+    private boolean failedEnchant(InventoryClickEvent event, EnchantmentStorageMeta toEnchant) {
         if (!event.getWhoClicked().hasPermission("click_enchant.enchant")) return true;
         ItemStack currentItem = event.getCurrentItem();
         if (currentItem == null) return true;
         final Player player = (Player) event.getWhoClicked();
-        final Map<Enchantment, Integer> enchants = meta.getStoredEnchants();
+
+        final Map<Enchantment, Integer> enchants = toEnchant.getStoredEnchants();
+        final Set<Map.Entry<Enchantment, Integer>> adding = new HashSet<>(enchants.entrySet());
         int levels = getLevels(enchants);
+
+        if (getConfig().getBoolean("stop-illegal", true)) {
+            Set<Enchantment> conflicts = findConflicting(adding, currentItem);
+            if (currentItem.getType() == Material.ENCHANTED_BOOK || adding.size() == conflicts.size()) {
+                if (!conflicts.isEmpty()) {
+                    String collected = conflicts.stream()
+                            .map(e -> e.getKey().toString())
+                            .collect(Collectors.joining(", "));
+                    exitInventory(player, ChatColor.RED + "Could not apply the following: " + collected);
+                    event.setCancelled(true);
+                    return true;
+                }
+            } else {
+                adding.removeIf(e -> conflicts.contains(e.getKey()));
+            }
+        }
         if (player.getLevel() < levels) {
             exitInventory(player, ChatColor.RED + "Not enough experience levels! (Needed " + levels + ")");
             event.setCancelled(true);
             return true;
         }
         player.giveExpLevels(-levels);
-        for (Map.Entry<Enchantment, Integer> entry : enchants.entrySet()) {
+        for (Map.Entry<Enchantment, Integer> entry : adding) {
             final Enchantment enchant = entry.getKey();
-            if (EnchantUtil.addEnchant(currentItem, enchant, entry.getValue()) == null) {
+            if (EnchantUtil.tryAddEnchant(currentItem, enchant, entry.getValue()) == null) {
                 exitInventory(player, ChatColor.RED + "Exceeded max enchant level of " + enchant.getKey());
                 event.setCancelled(true);
                 return true;
@@ -149,6 +172,30 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
         playEnchantEffect(player);
         event.setCurrentItem(currentItem);
         return false;
+    }
+
+    private static Set<Enchantment> findConflicting(Set<Map.Entry<Enchantment, Integer>> adding,
+                                                    ItemStack currentItem) {
+        final Set<Enchantment> conflicts = new HashSet<>();
+        Map<Enchantment, Integer> enchants = getEnchants(currentItem);
+        boolean isBook = currentItem.getType() != Material.ENCHANTED_BOOK;
+        for (Map.Entry<Enchantment, Integer> entry : adding) {
+            Enchantment enchantment = entry.getKey();
+            if (!enchantment.canEnchantItem(currentItem)
+                    && isBook) {
+                System.out.println("can't do item");
+                conflicts.add(enchantment);
+                continue;
+            }
+            for (Enchantment check : enchants.keySet()) {
+                if (check.conflictsWith(enchantment)) {
+                    System.out.println("can't do " + check);
+                    conflicts.add(enchantment);
+                    break;
+                }
+            }
+        }
+        return conflicts;
     }
 
     private static void exitInventory(Player player, String msg) {
@@ -162,7 +209,7 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
         final EnchantmentStorageMeta meta = extracting.getType() == Material.ENCHANTED_BOOK ? (EnchantmentStorageMeta) extracting.getItemMeta() : null;
         final boolean isNormalItem = meta == null;
         final boolean isEnchantedBook = meta != null;
-        final Map<Enchantment, Integer> enchants = isNormalItem ? extracting.getEnchantments() : meta.getStoredEnchants();
+        final Map<Enchantment, Integer> enchants = EnchantUtil.getEnchants(extracting);
         if (enchants.isEmpty()) return true;
         final Enchantment enchant = EnchantUtil.findLast(enchants);
         if (enchant == null) return true;
@@ -179,7 +226,7 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
             }
         }
         final int newLevel = Math.max(1, level);
-        final ItemStack book = event.getCurrentItem() == null ? makeBook(enchant, newLevel) : addEnchant(event.getCurrentItem(), enchant, newLevel);
+        final ItemStack book = event.getCurrentItem() == null ? makeBook(enchant, newLevel) : tryAddEnchant(event.getCurrentItem(), enchant, newLevel);
         if (book == null) {
             exitInventory((Player) event.getWhoClicked(), ChatColor.RED + "Exceeded max enchant level of " + enchant.getKey());
             event.setCancelled(true);

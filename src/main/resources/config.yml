@@ -1,2 +1,3 @@
 maxes:
   "minecraft:protection": 5
+stop-illegal: true

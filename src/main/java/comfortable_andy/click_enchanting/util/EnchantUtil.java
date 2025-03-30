@@ -8,6 +8,7 @@ import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -32,7 +33,7 @@ public class EnchantUtil {
 
     @SuppressWarnings("deprecation")
     @Nullable
-    public static ItemStack addEnchant(ItemStack item, Enchantment enchant, int level) {
+    public static ItemStack tryAddEnchant(ItemStack item, Enchantment enchant, int level) {
         if (item.getType() == Material.BOOK) item.setType(Material.ENCHANTED_BOOK);
         Integer maxLevel = ClickEnchantingMain.MAXES.getOrDefault(enchant.getKey().toString(), Integer.MAX_VALUE);
         if (item.getType() == Material.ENCHANTED_BOOK) {
@@ -49,6 +50,13 @@ public class EnchantUtil {
             item.addUnsafeEnchantment(enchant, newLevel);
         }
         return item;
+    }
+
+    public static Map<Enchantment, Integer> getEnchants(ItemStack stack) {
+        ItemMeta meta = stack.getItemMeta();
+        if (meta instanceof EnchantmentStorageMeta storageMeta) {
+            return storageMeta.getStoredEnchants();
+        } else return meta.getEnchants();
     }
 
     @NotNull
