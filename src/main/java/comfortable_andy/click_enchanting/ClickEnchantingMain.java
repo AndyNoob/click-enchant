@@ -101,7 +101,8 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
         final boolean isCurrentItemEmpty = currentItem == null
                 || currentItem.isEmpty()
                 || currentItem.getType().isAir();
-        if (currentItem != null && (currentItem.getType().isAir() || currentItem.getAmount() != 1 || currentItem.getMaxStackSize() != 1))
+        if (cursor.getAmount() != 1) return;
+        if (currentItem != null && (currentItem.getType().isAir() || currentItem.getAmount() != 1))
             return;
         if (cursor.getType() == Material.ENCHANTED_BOOK) {
             final EnchantmentStorageMeta meta = (EnchantmentStorageMeta) cursor.getItemMeta();
