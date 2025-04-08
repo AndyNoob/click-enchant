@@ -72,6 +72,7 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
     public void onEnchantedBookPickup(InventoryClickEvent event) {
         if (event.getClickedInventory() == null) return;
         final Player player = (Player) event.getWhoClicked();
+        if (player.getGameMode().isInvulnerable()) return;
         final String actionName = event.getAction().name();
         final boolean isPickup = actionName.contains("PICKUP");
         final boolean isPlace = actionName.contains("PLACE");
@@ -96,6 +97,7 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
     @EventHandler
     public void onEnchantAttempt(InventoryClickEvent event) {
         if (event.getClickedInventory() == null) return;
+        if (event.getWhoClicked().getGameMode().isInvulnerable()) return;
         final ItemStack cursor = event.getCursor();
         final ItemStack currentItem = event.getCurrentItem();
         final boolean isCurrentItemEmpty = currentItem == null
