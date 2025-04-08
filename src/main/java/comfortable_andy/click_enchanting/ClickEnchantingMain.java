@@ -188,7 +188,8 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
                 continue;
             }
             for (Enchantment check : enchants.keySet()) {
-                if (check.conflictsWith(enchantment)) {
+                if (!enchantment.getKey().equals(check.getKey())
+                        && check.conflictsWith(enchantment)) {
                     conflicts.add(enchantment);
                     break;
                 }
