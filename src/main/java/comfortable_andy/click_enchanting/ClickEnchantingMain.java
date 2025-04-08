@@ -183,13 +183,11 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
             Enchantment enchantment = entry.getKey();
             if (!enchantment.canEnchantItem(currentItem)
                     && isBook) {
-                System.out.println("can't do item");
                 conflicts.add(enchantment);
                 continue;
             }
             for (Enchantment check : enchants.keySet()) {
                 if (check.conflictsWith(enchantment)) {
-                    System.out.println("can't do " + check);
                     conflicts.add(enchantment);
                     break;
                 }
