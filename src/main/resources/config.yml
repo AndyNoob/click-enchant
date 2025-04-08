@@ -1,3 +1,4 @@
 maxes:
-  "minecraft:protection": 5
+  "minecraft:protection": 5 # can use "uncapped" or "vanilla"
+#  "minecraft:sharpness": uncapped
 stop-illegal: true

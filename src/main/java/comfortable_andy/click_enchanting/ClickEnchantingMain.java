@@ -64,7 +64,20 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
         ConfigurationSection section = getConfig().getConfigurationSection("maxes");
         if (section == null) return;
         for (@Subst("minecraft:protection") String key : section.getKeys(false)) {
-            MAXES.put(key, section.getInt(key, Optional.ofNullable(RegistryAccess.registryAccess().getRegistry(RegistryKey.ENCHANTMENT).get(Key.key(key))).map(Enchantment::getMaxLevel).orElse(0)));
+            Integer defMax = Optional.ofNullable(
+                    RegistryAccess.registryAccess()
+                            .getRegistry(RegistryKey.ENCHANTMENT)
+                            .get(Key.key(key)))
+                    .map(Enchantment::getMaxLevel)
+                    .orElse(0);
+            String val = section.getString(key);
+            int level;
+            if ("uncapped".equals(val))
+                level = Integer.MAX_VALUE;
+            else if ("vanilla".equalsIgnoreCase(val))
+                level = defMax;
+            else level = section.getInt(key, defMax);
+            MAXES.put(key, level);
         }
     }
 
