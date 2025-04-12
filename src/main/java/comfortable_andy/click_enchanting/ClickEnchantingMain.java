@@ -179,7 +179,7 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
         player.giveExpLevels(-levels);
         for (Map.Entry<Enchantment, Integer> entry : adding) {
             final Enchantment enchant = entry.getKey();
-            if (EnchantUtil.tryAddEnchant(currentItem, enchant, entry.getValue()) == null) {
+            if (EnchantUtil.tryAddEnchant(currentItem, enchant, entry.getValue(), this) == null) {
                 exitInventory(player, ChatColor.RED + "Exceeded max enchant level of " + enchant.getKey());
                 event.setCancelled(true);
                 return true;
@@ -219,7 +219,7 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
         player.closeInventory();
     }
 
-    private static boolean failedPartitionEnchants(InventoryClickEvent event, ItemStack extracting) {
+    private boolean failedPartitionEnchants(InventoryClickEvent event, ItemStack extracting) {
         if (!event.getWhoClicked().hasPermission("click_enchant.unenchant")) return true;
         final EnchantmentStorageMeta meta = extracting.getType() == Material.ENCHANTED_BOOK ? (EnchantmentStorageMeta) extracting.getItemMeta() : null;
         final boolean isNormalItem = meta == null;
@@ -241,7 +241,7 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
             }
         }
         final int newLevel = Math.max(1, level);
-        final ItemStack book = event.getCurrentItem() == null ? makeBook(enchant, newLevel) : tryAddEnchant(event.getCurrentItem(), enchant, newLevel);
+        final ItemStack book = event.getCurrentItem() == null ? makeBook(enchant, newLevel) : tryAddEnchant(event.getCurrentItem(), enchant, newLevel, this);
         if (book == null) {
             exitInventory((Player) event.getWhoClicked(), ChatColor.RED + "Exceeded max enchant level of " + enchant.getKey());
             event.setCancelled(true);

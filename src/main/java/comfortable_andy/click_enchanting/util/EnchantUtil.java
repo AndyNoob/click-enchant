@@ -27,15 +27,16 @@ public class EnchantUtil {
         return item == null || item.getAmount() != 1 || item.getType() != Material.ENCHANTED_BOOK;
     }
 
-    public static boolean bookOrEnchantedBook(ItemStack item) {
-        return !notBook(item) || !notEnchantedBook(item);
-    }
-
     @SuppressWarnings("deprecation")
     @Nullable
-    public static ItemStack tryAddEnchant(ItemStack item, Enchantment enchant, int level) {
+    public static ItemStack tryAddEnchant(ItemStack item, Enchantment enchant, int level, ClickEnchantingMain main) {
         if (item.getType() == Material.BOOK) item.setType(Material.ENCHANTED_BOOK);
-        Integer maxLevel = ClickEnchantingMain.MAXES.getOrDefault(enchant.getKey().toString(), Integer.MAX_VALUE);
+        Integer maxLevel = ClickEnchantingMain.MAXES.getOrDefault(enchant.getKey().toString(), null);
+        if (maxLevel == null) {
+            if (main.getConfig().getBoolean("use-vanilla-maxes", true)) {
+                maxLevel = enchant.getMaxLevel();
+            } else maxLevel = Integer.MAX_VALUE;
+        }
         if (item.getType() == Material.ENCHANTED_BOOK) {
             final EnchantmentStorageMeta meta = (EnchantmentStorageMeta) item.getItemMeta();
             final int storedLevel = meta.getStoredEnchantLevel(enchant);
