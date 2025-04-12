@@ -9,9 +9,7 @@ import io.papermc.paper.registry.RegistryKey;
 import net.kyori.adventure.key.Key;
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
 import net.minecraft.server.level.ServerPlayer;
-import org.bukkit.ChatColor;
-import org.bukkit.Material;
-import org.bukkit.Sound;
+import org.bukkit.*;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.craftbukkit.inventory.CraftItemStack;
@@ -24,6 +22,7 @@ import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.intellij.lang.annotations.Subst;
@@ -41,10 +40,12 @@ import static comfortable_andy.click_enchanting.util.EnchantUtil.*;
 public final class ClickEnchantingMain extends JavaPlugin implements Listener {
 
     public static final Map<String, Integer> MAXES = new HashMap<>();
+    private NamespacedKey blinkTaskId;
 
     @Override
     public void onEnable() {
         reload();
+        this.blinkTaskId = new NamespacedKey(this, "blink-task-id");
         getServer().getPluginManager().registerEvents(this, this);
         //noinspection CodeBlock2Expr
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, commands -> {
@@ -65,9 +66,9 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
         if (section == null) return;
         for (@Subst("minecraft:protection") String key : section.getKeys(false)) {
             Integer defMax = Optional.ofNullable(
-                    RegistryAccess.registryAccess()
-                            .getRegistry(RegistryKey.ENCHANTMENT)
-                            .get(Key.key(key)))
+                            RegistryAccess.registryAccess()
+                                    .getRegistry(RegistryKey.ENCHANTMENT)
+                                    .get(Key.key(key)))
                     .map(Enchantment::getMaxLevel)
                     .orElse(0);
             String val = section.getString(key);
@@ -81,6 +82,8 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
         }
     }
 
+    private final Map<Integer, BukkitRunnable> previewRunnableMap = new HashMap<>();
+
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     public void onEnchantedBookPickup(InventoryClickEvent event) {
         if (event.getClickedInventory() == null) return;
@@ -90,21 +93,65 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
         final boolean isPickup = actionName.contains("PICKUP");
         final boolean isPlace = actionName.contains("PLACE");
         if (!(isPickup || isPlace)) return;
-        final ItemStack item = isPickup ? event.getCurrentItem() : event.getCursor();
-        if (notEnchantedBook(item)) return;
+        final ItemStack current = isPickup ? event.getCurrentItem() : event.getCursor();
+        if (notEnchantedBook(current)) return;
         final ServerPlayer handle = ((CraftPlayer) player).getHandle();
-        final var nmsCopy = isPickup ? CraftItemStack.asNMSCopy(item) : null;
-        if (isPickup) nmsCopy.setCount(getLevels(item));
-        new BukkitRunnable() {
+
+        Integer id = player.getPersistentDataContainer().get(blinkTaskId, PersistentDataType.INTEGER);
+
+        if (id != null && previewRunnableMap.containsKey(id)) {
+            try {
+                previewRunnableMap.remove(id).cancel();
+            } catch (Exception ignored) {
+            }
+        }
+        if (isPlace) return;
+        id = new BukkitRunnable() {
+            boolean flipFlop = false;
+
             @Override
             public void run() {
-                if (isPickup) {
-                    handle.connection.connection.send(
-                            new ClientboundContainerSetSlotPacket(-1, handle.containerMenu.incrementStateId(), -1, nmsCopy)
+                ItemStack cursor = player.getOpenInventory().getCursor();
+                int levels = getLevels(cursor);
+                if (levels > 1 && flipFlop) return;
+                flipFlop = !flipFlop;
+                Map<Enchantment, Integer> enchants = getEnchants(cursor);
+                if (enchants.isEmpty()) {
+                    cancel();
+                    return;
+                }
+                ItemStack[] contents = player.getInventory().getStorageContents();
+                Set<Map.Entry<Enchantment, Integer>> adding = enchants.entrySet();
+                for (int i = 0; i < contents.length; i++) {
+                    ItemStack item = contents[i];
+
+                    if (item == null) continue;
+                    if (!findConflicting(adding, item).isEmpty()) continue;
+
+                    int weirdSlotId = i <= 8 ? i + 36 : i;
+                    var copy = CraftItemStack.asNMSCopy(item);
+                    if (levels > 1) {
+                        copy.setCount(levels);
+                    } else {
+                        copy.setCount(flipFlop ? 1 : 0);
+                    }
+                    var packet = new ClientboundContainerSetSlotPacket(
+                            handle.containerMenu.containerId,
+                            handle.containerMenu.incrementStateId(),
+                            weirdSlotId,
+                            copy
                     );
-                } else player.updateInventory();
+                    handle.connection.connection.send(packet);
+                }
             }
-        }.runTaskLater(this, 1);
+
+            @Override
+            public synchronized void cancel() throws IllegalStateException {
+                player.updateInventory();
+                super.cancel();
+            }
+        }.runTaskTimer(this, 1, 10).getTaskId();
+        player.getPersistentDataContainer().set(blinkTaskId, PersistentDataType.INTEGER, id);
     }
 
     @EventHandler

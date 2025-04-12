@@ -12,6 +12,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collections;
 import java.util.Map;
 
 public class EnchantUtil {
@@ -55,6 +56,7 @@ public class EnchantUtil {
 
     public static Map<Enchantment, Integer> getEnchants(ItemStack stack) {
         ItemMeta meta = stack.getItemMeta();
+        if (meta == null) return Collections.emptyMap();
         if (meta instanceof EnchantmentStorageMeta storageMeta) {
             return storageMeta.getStoredEnchants();
         } else return meta.getEnchants();
