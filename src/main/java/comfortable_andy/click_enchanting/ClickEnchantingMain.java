@@ -20,18 +20,16 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.inventory.CraftingInventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
+import org.bukkit.inventory.meta.Repairable;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.intellij.lang.annotations.Subst;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static comfortable_andy.click_enchanting.util.EnchantUtil.*;
@@ -87,6 +85,7 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     public void onEnchantedBookPickup(InventoryClickEvent event) {
         if (event.getClickedInventory() == null) return;
+        if (!(event.getView().getTopInventory() instanceof CraftingInventory)) return;
         final Player player = (Player) event.getWhoClicked();
         if (player.getGameMode().isInvulnerable()) return;
         final String actionName = event.getAction().name();
@@ -111,9 +110,11 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
 
             @Override
             public void run() {
+                if (!(player.getOpenInventory().getTopInventory() instanceof CraftingInventory)) {
+                    cancel();
+                    return;
+                }
                 ItemStack cursor = player.getOpenInventory().getCursor();
-                int levels = getLevels(cursor);
-                if (levels > 1 && flipFlop) return;
                 flipFlop = !flipFlop;
                 Map<Enchantment, Integer> enchants = getEnchants(cursor);
                 if (enchants.isEmpty()) {
@@ -126,12 +127,33 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
                     ItemStack item = contents[i];
 
                     if (item == null) continue;
-                    if (!findConflicting(adding, item).isEmpty()) continue;
+                    if (item.getAmount() != 1) continue;
+                    if (item.getType() == Material.BOOK) continue;
+                    Set<Enchantment> conflicts = findConflicting(adding, item);
+                    if (item.getType() == Material.ENCHANTED_BOOK || adding.size() == conflicts.size()) {
+                        if (!conflicts.isEmpty()) continue;
+                    }
 
                     int weirdSlotId = i <= 8 ? i + 36 : i;
                     var copy = CraftItemStack.asNMSCopy(item);
-                    if (levels > 1) {
-                        copy.setCount(levels);
+                    var applicableEnchants = new HashMap<>(enchants);
+                    applicableEnchants.entrySet().removeIf(entry -> conflicts.contains(entry.getKey()));
+                    int repairCur = getRepairCost(item.getItemMeta(), ClickEnchantingMain.this);
+                    int repairAdd = getRepairCost(cursor.getItemMeta(), ClickEnchantingMain.this);
+                    int levels = getLevels(applicableEnchants);
+                    var curEnchants = getEnchants(item).keySet();
+                    int penalty = (int) conflicts.stream()
+                            .filter(e -> curEnchants.stream()
+                                    // there's only penalty when enchantments conflict
+                                    .anyMatch(e1 -> e1.conflictsWith(e)))
+                            .count();
+                    int actualLevels = repairCur
+                            + levels
+                            + penalty
+                            + repairAdd;
+
+                    if (actualLevels > 1) {
+                        copy.setCount(actualLevels);
                     } else {
                         copy.setCount(flipFlop ? 1 : 0);
                     }
@@ -194,15 +216,23 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
     }
 
     private boolean failedEnchant(InventoryClickEvent event, EnchantmentStorageMeta toEnchant) {
+        /*
+        anvil cost system:
+        - conflict penalty (1 lvl for every inapplicable enchant with another)
+        - enchantment cost (rarity * enchant level)
+        - repair cost (sum of both items)
+        repair cost increments by (highest of the two combined items * 2 + 1)
+         */
         if (!event.getWhoClicked().hasPermission("click_enchant.enchant")) return true;
         ItemStack currentItem = event.getCurrentItem();
         if (currentItem == null) return true;
         final Player player = (Player) event.getWhoClicked();
 
-        final Map<Enchantment, Integer> enchants = toEnchant.getStoredEnchants();
-        final Set<Map.Entry<Enchantment, Integer>> adding = new HashSet<>(enchants.entrySet());
-        int levels = getLevels(enchants);
-
+        final Map<Enchantment, Integer> enchants = new HashMap<>(toEnchant.getStoredEnchants());
+        final Set<Map.Entry<Enchantment, Integer>> adding = enchants.entrySet();
+        int repairAdd = getRepairCost(toEnchant, this);
+        int repairCurrent = getRepairCost(currentItem.getItemMeta(), this);
+        int levels = 0;
         if (getConfig().getBoolean("stop-illegal", true)) {
             Set<Enchantment> conflicts = findConflicting(adding, currentItem);
             if (currentItem.getType() == Material.ENCHANTED_BOOK || adding.size() == conflicts.size()) {
@@ -217,7 +247,22 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
             } else {
                 adding.removeIf(e -> conflicts.contains(e.getKey()));
             }
+            Set<Enchantment> curEnchants = getEnchants(currentItem).keySet();
+            levels += (int) conflicts.stream()
+                    .filter(e -> curEnchants.stream()
+                            // there's only penalty when enchantments conflict
+                            .anyMatch(e1 -> e1.conflictsWith(e)))
+                    .count();
         }
+
+        levels += getLevels(enchants) + repairAdd + repairCurrent;
+
+        if (getConfig().getBoolean("too-expensive", true) && levels >= 40) {
+            exitInventory(player, ChatColor.RED + "Too expensive!");
+            event.setCancelled(true);
+            return true;
+        }
+
         if (player.getLevel() < levels) {
             exitInventory(player, ChatColor.RED + "Not enough experience levels! (Needed " + levels + ")");
             event.setCancelled(true);
@@ -233,6 +278,10 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
             }
         }
         playEnchantEffect(player);
+        if (getConfig().getBoolean("do-repair-cost", true) && currentItem.getItemMeta() instanceof Repairable r) {
+            r.setRepairCost(Math.max(repairCurrent, repairAdd) * 2 + 1);
+            currentItem.setItemMeta(r);
+        }
         event.setCurrentItem(currentItem);
         return false;
     }

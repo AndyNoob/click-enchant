@@ -3,3 +3,5 @@ maxes:
 #  "minecraft:sharpness": uncapped
 stop-illegal: true
 use-vanilla-maxes: true
+do-repair-cost: true
+too-expensive: true

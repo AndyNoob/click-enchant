@@ -9,6 +9,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.Repairable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -76,11 +77,9 @@ public class EnchantUtil {
         return enchants.keySet().stream().reduce((a, b) -> a).orElse(null);
     }
 
-    public static int getLevels(ItemStack i) {
-        if (notEnchantedBook(i)) return 0;
-        return getLevels(((EnchantmentStorageMeta) i.getItemMeta()).getStoredEnchants());
+    public static int getRepairCost(ItemMeta item, ClickEnchantingMain main) {
+        return main.getConfig().getBoolean("do-repair-cost", true) && item instanceof Repairable r ? r.getRepairCost() : 0;
     }
-
 
     public static int getLevels(Map<Enchantment, Integer> enchants) {
         int levels = 0;
