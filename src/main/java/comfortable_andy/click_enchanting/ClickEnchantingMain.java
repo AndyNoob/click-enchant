@@ -172,7 +172,7 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
                 player.updateInventory();
                 super.cancel();
             }
-        }.runTaskTimer(this, 1, 10).getTaskId();
+        }.runTaskTimer(this, 1, getConfig().getInt("blink-time-ticks", 20)).getTaskId();
         player.getPersistentDataContainer().set(blinkTaskId, PersistentDataType.INTEGER, id);
     }
 
