@@ -43,6 +43,7 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 runServer {
+    minecraftVersion("1.21.4")
     jvmArgs("-Xms1G", "-Xmx1G")
 }
 
