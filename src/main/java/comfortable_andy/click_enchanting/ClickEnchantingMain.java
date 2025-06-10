@@ -2,15 +2,14 @@ package comfortable_andy.click_enchanting;
 
 import com.mojang.brigadier.Command;
 import comfortable_andy.click_enchanting.util.EnchantUtil;
+import comfortable_andy.click_enchanting.util.NBTUtil;
 import io.papermc.paper.command.brigadier.Commands;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import io.papermc.paper.registry.RegistryAccess;
 import io.papermc.paper.registry.RegistryKey;
 import net.kyori.adventure.key.Key;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.component.CustomData;
 import org.bukkit.*;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
@@ -188,10 +187,8 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
                 || currentItem.isEmpty()
                 || currentItem.getType().isAir();
         if (cursor.getAmount() != 1) return;
-        CustomData cursorData = CraftItemStack.asNMSCopy(cursor).get(DataComponents.CUSTOM_DATA);
-        if (cursorData != null && cursorData.copyTag().getBoolean("no-click-enchant")) return;
-        CustomData currentData = CraftItemStack.asNMSCopy(currentItem).get(DataComponents.CUSTOM_DATA);
-        if (currentData != null && currentData.copyTag().getBoolean("no-click-enchant")) return;
+        if (NBTUtil.noClickEnchant(cursor)) return;
+        if (NBTUtil.noClickEnchant(currentItem)) return;
         if (currentItem != null && (currentItem.getType().isAir() || currentItem.getAmount() != 1))
             return;
         if (cursor.getType() == Material.ENCHANTED_BOOK) {
