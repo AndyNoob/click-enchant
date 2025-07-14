@@ -181,7 +181,7 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
     @EventHandler
     public void onEnchantAttempt(InventoryClickEvent event) {
         if (event.getClickedInventory() == null) return;
-        if (!(event.getClickedInventory() instanceof CraftingInventory) || !(event.getClickedInventory() instanceof PlayerInventory)) return;
+        if (!(event.getClickedInventory() instanceof PlayerInventory)) return;
         if (event.getWhoClicked().getGameMode().isInvulnerable()) return;
         final ItemStack cursor = event.getCursor();
         final ItemStack currentItem = event.getCurrentItem();
