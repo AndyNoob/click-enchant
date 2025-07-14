@@ -23,6 +23,7 @@ import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.CraftingInventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.Repairable;
 import org.bukkit.persistence.PersistentDataType;
@@ -180,6 +181,7 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
     @EventHandler
     public void onEnchantAttempt(InventoryClickEvent event) {
         if (event.getClickedInventory() == null) return;
+        if (!(event.getClickedInventory() instanceof CraftingInventory) || !(event.getClickedInventory() instanceof PlayerInventory)) return;
         if (event.getWhoClicked().getGameMode().isInvulnerable()) return;
         final ItemStack cursor = event.getCursor();
         final ItemStack currentItem = event.getCurrentItem();
