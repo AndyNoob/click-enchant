@@ -10,7 +10,10 @@ import io.papermc.paper.registry.RegistryKey;
 import net.kyori.adventure.key.Key;
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
 import net.minecraft.server.level.ServerPlayer;
-import org.bukkit.*;
+import org.bukkit.ChatColor;
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.craftbukkit.inventory.CraftItemStack;
@@ -86,6 +89,7 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     public void onEnchantedBookPickup(InventoryClickEvent event) {
+        if (!getConfig().getBoolean("do-experience-cost", true)) return;
         if (event.getClickedInventory() == null) return;
         if (!(event.getView().getTopInventory() instanceof CraftingInventory)) return;
         final Player player = (Player) event.getWhoClicked();
@@ -235,45 +239,49 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
 
         final Map<Enchantment, Integer> enchants = new HashMap<>(toEnchant.getStoredEnchants());
         final Set<Map.Entry<Enchantment, Integer>> adding = enchants.entrySet();
-        int repairAdd = getRepairCost(toEnchant, this);
-        int repairCurrent = getRepairCost(currentItem.getItemMeta(), this);
-        int levels = 0;
-        if (getConfig().getBoolean("stop-illegal", true)) {
-            Set<Enchantment> conflicts = findConflicting(adding, currentItem);
-            if (currentItem.getType() == Material.ENCHANTED_BOOK || adding.size() == conflicts.size()) {
-                if (!conflicts.isEmpty()) {
-                    String collected = conflicts.stream()
-                            .map(e -> e.getKey().toString())
-                            .collect(Collectors.joining(", "));
-                    exitInventory(player, ChatColor.RED + "Could not apply the following: " + collected);
-                    event.setCancelled(true);
-                    return true;
+        int repairAdd = 0;
+        int repairCurrent = 0;
+        if (getConfig().getBoolean("do-experience-cost", true)) {
+            repairAdd = getRepairCost(toEnchant, this);
+            repairCurrent = getRepairCost(currentItem.getItemMeta(), this);
+            int levels = 0;
+            if (getConfig().getBoolean("stop-illegal", true)) {
+                Set<Enchantment> conflicts = findConflicting(adding, currentItem);
+                if (currentItem.getType() == Material.ENCHANTED_BOOK || adding.size() == conflicts.size()) {
+                    if (!conflicts.isEmpty()) {
+                        String collected = conflicts.stream()
+                                .map(e -> e.getKey().toString())
+                                .collect(Collectors.joining(", "));
+                        exitInventory(player, ChatColor.RED + "Could not apply the following: " + collected);
+                        event.setCancelled(true);
+                        return true;
+                    }
+                } else {
+                    adding.removeIf(e -> conflicts.contains(e.getKey()));
                 }
-            } else {
-                adding.removeIf(e -> conflicts.contains(e.getKey()));
+                Set<Enchantment> curEnchants = getEnchants(currentItem).keySet();
+                levels += (int) conflicts.stream()
+                        .filter(e -> curEnchants.stream()
+                                // there's only penalty when enchantments conflict
+                                .anyMatch(e1 -> e1.conflictsWith(e)))
+                        .count();
             }
-            Set<Enchantment> curEnchants = getEnchants(currentItem).keySet();
-            levels += (int) conflicts.stream()
-                    .filter(e -> curEnchants.stream()
-                            // there's only penalty when enchantments conflict
-                            .anyMatch(e1 -> e1.conflictsWith(e)))
-                    .count();
-        }
 
-        levels += getLevels(enchants) + repairAdd + repairCurrent;
+            levels += getLevels(enchants) + repairAdd + repairCurrent;
 
-        if (getConfig().getBoolean("too-expensive", true) && levels >= 40) {
-            exitInventory(player, ChatColor.RED + "Too expensive!");
-            event.setCancelled(true);
-            return true;
-        }
+            if (getConfig().getBoolean("too-expensive", true) && levels >= 40) {
+                exitInventory(player, ChatColor.RED + "Too expensive!");
+                event.setCancelled(true);
+                return true;
+            }
 
-        if (player.getLevel() < levels) {
-            exitInventory(player, ChatColor.RED + "Not enough experience levels! (Needed " + levels + ")");
-            event.setCancelled(true);
-            return true;
+            if (player.getLevel() < levels) {
+                exitInventory(player, ChatColor.RED + "Not enough experience levels! (Needed " + levels + ")");
+                event.setCancelled(true);
+                return true;
+            }
+            player.giveExpLevels(-levels);
         }
-        player.giveExpLevels(-levels);
         for (Map.Entry<Enchantment, Integer> entry : adding) {
             final Enchantment enchant = entry.getKey();
             if (EnchantUtil.tryAddEnchant(currentItem, enchant, entry.getValue(), this) == null) {
@@ -283,7 +291,9 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
             }
         }
         playEnchantEffect(player);
-        if (getConfig().getBoolean("do-repair-cost", true) && currentItem.getItemMeta() instanceof Repairable r) {
+        if (getConfig().getBoolean("do-experience-cost", true)
+                && getConfig().getBoolean("do-repair-cost", true)
+                && currentItem.getItemMeta() instanceof Repairable r) {
             r.setRepairCost(Math.max(repairCurrent, repairAdd) * 2 + 1);
             currentItem.setItemMeta(r);
         }

@@ -6,3 +6,4 @@ use-vanilla-maxes: true
 do-repair-cost: true
 too-expensive: true
 blink-time-ticks: 20
+do-experience-cost: true
