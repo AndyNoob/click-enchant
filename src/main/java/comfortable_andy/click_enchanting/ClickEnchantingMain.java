@@ -239,35 +239,32 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
 
         final Map<Enchantment, Integer> enchants = new HashMap<>(toEnchant.getStoredEnchants());
         final Set<Map.Entry<Enchantment, Integer>> adding = enchants.entrySet();
-        int repairAdd = 0;
-        int repairCurrent = 0;
-        if (getConfig().getBoolean("do-experience-cost", true)) {
-            repairAdd = getRepairCost(toEnchant, this);
-            repairCurrent = getRepairCost(currentItem.getItemMeta(), this);
-            int levels = 0;
-            if (getConfig().getBoolean("stop-illegal", true)) {
-                Set<Enchantment> conflicts = findConflicting(adding, currentItem);
-                if (currentItem.getType() == Material.ENCHANTED_BOOK || adding.size() == conflicts.size()) {
-                    if (!conflicts.isEmpty()) {
-                        String collected = conflicts.stream()
-                                .map(e -> e.getKey().toString())
-                                .collect(Collectors.joining(", "));
-                        exitInventory(player, ChatColor.RED + "Could not apply the following: " + collected);
-                        event.setCancelled(true);
-                        return true;
-                    }
-                } else {
-                    adding.removeIf(e -> conflicts.contains(e.getKey()));
+        int repairAdd = getRepairCost(toEnchant, this);
+        int repairCurrent = getRepairCost(currentItem.getItemMeta(), this);
+        int levels = 0;
+        if (getConfig().getBoolean("stop-illegal", true)) {
+            Set<Enchantment> conflicts = findConflicting(adding, currentItem);
+            if (currentItem.getType() == Material.ENCHANTED_BOOK || adding.size() == conflicts.size()) {
+                if (!conflicts.isEmpty()) {
+                    String collected = conflicts.stream()
+                            .map(e -> e.getKey().toString())
+                            .collect(Collectors.joining(", "));
+                    exitInventory(player, ChatColor.RED + "Could not apply the following: " + collected);
+                    event.setCancelled(true);
+                    return true;
                 }
-                Set<Enchantment> curEnchants = getEnchants(currentItem).keySet();
+            } else {
+                adding.removeIf(e -> conflicts.contains(e.getKey()));
+            }
+            Set<Enchantment> curEnchants = getEnchants(currentItem).keySet();
+            if (getConfig().getBoolean("do-experience-cost", true)) {
                 levels += (int) conflicts.stream()
                         .filter(e -> curEnchants.stream()
                                 // there's only penalty when enchantments conflict
                                 .anyMatch(e1 -> e1.conflictsWith(e)))
                         .count();
+                levels += getLevels(enchants) + repairAdd + repairCurrent;
             }
-
-            levels += getLevels(enchants) + repairAdd + repairCurrent;
 
             if (getConfig().getBoolean("too-expensive", true) && levels >= 40) {
                 exitInventory(player, ChatColor.RED + "Too expensive!");
