@@ -233,16 +233,24 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
         repair cost increments by (highest of the two combined items * 2 + 1)
          */
         if (!event.getWhoClicked().hasPermission("click_enchant.enchant")) return true;
+        if (!(event.getWhoClicked() instanceof Player player)) return true;
         ItemStack currentItem = event.getCurrentItem();
         if (currentItem == null) return true;
-        final Player player = (Player) event.getWhoClicked();
+        String matName = currentItem.getType().name();
+        if (getConfig().getStringList("illegal-checking.item-black-list")
+                .stream()
+                .anyMatch(matName::contains)) {
+            exitInventory(player, ChatColor.RED + "You cannot enchant a " + matName.toLowerCase().replace("_", " ") + "!");
+            event.setCancelled(true);
+            return true;
+        }
 
         final Map<Enchantment, Integer> enchants = new HashMap<>(toEnchant.getStoredEnchants());
         final Set<Map.Entry<Enchantment, Integer>> adding = enchants.entrySet();
         int repairAdd = getRepairCost(toEnchant, this);
         int repairCurrent = getRepairCost(currentItem.getItemMeta(), this);
         int levels = 0;
-        if (getConfig().getBoolean("stop-illegal", true)) {
+        if (getConfig().isConfigurationSection("illegal-checking")) {
             Set<Enchantment> conflicts = findConflicting(adding, currentItem);
             if (currentItem.getType() == Material.ENCHANTED_BOOK || adding.size() == conflicts.size()) {
                 if (!conflicts.isEmpty()) {
@@ -298,27 +306,43 @@ public final class ClickEnchantingMain extends JavaPlugin implements Listener {
         return false;
     }
 
-    private static Set<Enchantment> findConflicting(Set<Map.Entry<Enchantment, Integer>> adding,
-                                                    ItemStack currentItem) {
+    private Set<Enchantment> findConflicting(Set<Map.Entry<Enchantment, Integer>> adding,
+                                             ItemStack currentItem) {
         final Set<Enchantment> conflicts = new HashSet<>();
-        Map<Enchantment, Integer> enchants = getEnchants(currentItem);
+        Map<Enchantment, Integer> existing = getEnchants(currentItem);
         boolean isBook = currentItem.getType() != Material.ENCHANTED_BOOK;
+        List<String> specialCases = getConfig()
+                .getStringList("illegal-checking.special-cases");
         for (Map.Entry<Enchantment, Integer> entry : adding) {
             Enchantment enchantment = entry.getKey();
+            if (shouldNotCheck(enchantment, specialCases)) continue;
             if (!enchantment.canEnchantItem(currentItem)
                     && isBook) {
                 conflicts.add(enchantment);
                 continue;
             }
-            for (Enchantment check : enchants.keySet()) {
-                if (!enchantment.getKey().equals(check.getKey())
-                        && check.conflictsWith(enchantment)) {
+            for (Enchantment exist : existing.keySet()) {
+                if (shouldNotCheck(exist, specialCases)) continue;
+                if (!enchantment.getKey().equals(exist.getKey())
+                        && exist.conflictsWith(enchantment)) {
                     conflicts.add(enchantment);
                     break;
                 }
             }
         }
         return conflicts;
+    }
+
+    private boolean shouldNotCheck(Enchantment enchantment, List<String> specialCases) {
+        if (getConfig().getBoolean("illegal-checking.enabled", true)) {
+            // check for blacklist
+            return specialCases.contains(enchantment.getKey().toString())
+                    || specialCases.contains(enchantment.getKey().asMinimalString());
+        } else {
+            // white list only
+            return !(specialCases.contains(enchantment.getKey().toString())
+                    || specialCases.contains(enchantment.getKey().asMinimalString()));
+        }
     }
 
     private static void exitInventory(Player player, String msg) {

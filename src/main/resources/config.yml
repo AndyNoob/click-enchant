@@ -7,3 +7,12 @@ do-repair-cost: true
 too-expensive: true
 blink-time-ticks: 20
 do-experience-cost: true
+illegal-checking:
+  enabled: true # replaces stop-illegal
+  # list of enchants to check if enabled: false (whitelist)
+  # list of enchants to not check if enabled: true (blacklist)
+  special-cases: []
+  item-black-list:
+  # see https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/Material.html
+  # can use partial name, like CHESTPLATE
+    - BUNDLE
